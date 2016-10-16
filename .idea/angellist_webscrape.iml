@@ -3,6 +3,7 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/output" />
+      <excludeFolder url="file://$MODULE_DIR$/resource" />
     </content>
     <orderEntry type="jdk" jdkName="anaconda" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

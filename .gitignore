@@ -1,2 +1,4 @@
 output
 resource
+.idea
+ghostdriver*
