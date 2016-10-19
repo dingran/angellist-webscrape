@@ -105,16 +105,17 @@ def ultra_long_pause():
     time.sleep(t)
 
 
-def init_driver():
+def init_driver(driver_type='Chrome'):
     log_time('info')
-    driver_type = 'Chrome'
     print 'initiating driver: {}'.format(driver_type)
     if driver_type == 'Chrome':
         dr = webdriver.Chrome()
+    elif driver_type.startswith('Pha'):
+        dr = webdriver.PhantomJS()
+    elif driver_type.startswith('Fi'):
+        dr = webdriver.Firefox()
     else:
         assert False
-    # dr = webdriver.Firefox()
-    # dr= webdriver.PhantomJS()
     dr.set_window_size(1920, 600)
     dr.wait = WebDriverWait(dr, 5)
     dr.set_page_load_timeout(25)
@@ -134,6 +135,8 @@ if mute_display:
     log_time('info')
     print 'muted display'
     display0.start()
+
+
 selected_location = 'Boston'
 selected_location = 'Silicon Valley'
 # selected_location = 'United States'
@@ -230,14 +233,14 @@ for featured in featured_list:
 
                 driver = init_driver()
 
-                overall_serach_condition = 'featured_list_N={}, market_label_len_N={}, raised_pair_N={}'.format(
+                overall_search_condition = 'featured_list_N={}, market_label_len_N={}, raised_pair_N={}'.format(
                     len(featured_list), N_iterations, len(raised_pair_list))
 
                 color_str = 'blue'
                 log_time(color_str=color_str)
                 color_str = 'blue'
                 print termcolor.colored('*' * 20 + 'New search' + '*' * 20, color_str)
-                print termcolor.colored(overall_serach_condition, color_str)
+                print termcolor.colored(overall_search_condition, color_str)
                 print termcolor.colored('target_url: {}'.format(target_url), color_str)
                 print termcolor.colored('output_fname_template: {}'.format(output_fname_template), color_str)
 
@@ -283,7 +286,7 @@ for featured in featured_list:
                         output_fname_template = output_fname_template_orig.replace('sort=',
                                                                                    'stage={}_sort='.format(stage_str))
 
-                    overall_serach_condition = 'featured_list_N={}, market_label_len_N={}, raised_pair_N={}, ' \
+                    overall_search_condition = 'featured_list_N={}, market_label_len_N={}, raised_pair_N={}, ' \
                                                'stage_filter_N={}'.format(
                         len(featured_list), N_iterations, len(raised_pair_list), len(stage_filter))
 
@@ -291,7 +294,7 @@ for featured in featured_list:
                     log_time(color_str=color_str)
                     color_str = 'green'
                     print termcolor.colored('>' * 20 + 'New search' + '>' * 20, color_str)
-                    print termcolor.colored(overall_serach_condition, color_str)
+                    print termcolor.colored(overall_search_condition, color_str)
                     print termcolor.colored('target_url: {}'.format(target_url), color_str)
                     print termcolor.colored('output_fname_template: {}'.format(output_fname_template), color_str)
 
