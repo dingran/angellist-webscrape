@@ -77,7 +77,7 @@ def set_pause(kind=1, t=None):
     time.sleep(t)
 
 
-def init_driver(driver_type='Chrome'):
+def init_driver(driver_type='Phatom'):
     log_time('info')
     print 'initiating driver: {}'.format(driver_type)
     if driver_type == 'Chrome':
@@ -113,9 +113,7 @@ class AngelScraper:
 
         self.root_url = 'https://angel.co/companies?'
 
-        self.working_dir = '/Users/ran/Dropbox/angellist_webscrape'
-        if platform.system() == 'Linux':
-            self.working_dir = '/home/dingran/Dropbox/angellist_webscrape'
+        self.working_dir = '/Users/dingran/github/angellist-webscrape'
         self.code_dir = os.path.join(self.working_dir, 'code')
         self.output_dir = os.path.join(self.working_dir, 'output')
         self.url_list_folder = os.path.join(self.output_dir, 'url_lists')
