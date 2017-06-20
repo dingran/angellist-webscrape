@@ -77,7 +77,7 @@ def set_pause(kind=1, t=None):
     time.sleep(t)
 
 
-def init_driver(driver_type='Phatom'):
+def init_driver(driver_type='Chrome'):
     log_time('info')
     print 'initiating driver: {}'.format(driver_type)
     if driver_type == 'Chrome':
