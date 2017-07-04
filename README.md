@@ -1,8 +1,5 @@
-<<<<<<< HEAD
+
 ### Requirements:
-=======
-###Requirements:
->>>>>>> da9232b0121a860a844fa522b32d62842a5b9bda
 
 Tested with Python 2.7.13
 
@@ -20,11 +17,8 @@ The following packages are required
 * selenium
 * lxml
 
-<<<<<<< HEAD
+
 ### Approach:
-=======
-###Approach:
->>>>>>> da9232b0121a860a844fa522b32d62842a5b9bda
 
 In order to get a list of companies we can putgether a url with the base url https://angel.co/companies? 
 plus a number of filters a a string.
