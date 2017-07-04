@@ -3,3 +3,4 @@ resource
 .idea
 ghostdriver*
 code/.dropbox
+*.pyc

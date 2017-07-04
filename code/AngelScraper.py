@@ -1,3 +1,4 @@
+# from __future__ import print_function
 import numpy as np
 import os
 import re
@@ -113,6 +114,27 @@ class AngelScraper:
 
         self.root_url = 'https://angel.co/companies?'
 
+        # The url to request is self.root_url plus a number of filters
+        # An example with stage, signal, markets and location filter looks like the following
+        # https://angel.co/companies?stage=Seed&signal[min]=2.1&signal[max]=5.7&markets[]=Consumer+Internet&locations[]=2071-New+York
+
+        # At the time of writing, Angle.co limits number companies per query to be 400
+        # there for we can use filters to create more unique searches and hit more non-duplicate companies
+
+        # specifies which filter to enable
+        self.skip_market_filter = skip_market_filter
+        self.skip_location_filter = skip_location_filter
+        self.skip_raised_filter = skip_raised_filter
+        self.skip_stage_filter = skip_stage_filter
+        self.skip_signal_filter = skip_signal_filter
+        self.skip_featured_filter = skip_featured_filter
+
+        self.market_filters = ['']
+        self.location_filters = ['']
+        self.signal_filters = ['']
+        self.featured_filters = ['']
+
+        # specifying a set of folders
         self.working_dir = '/Users/dingran/github/angellist-webscrape'
         self.code_dir = os.path.join(self.working_dir, 'code')
         self.output_dir = os.path.join(self.working_dir, 'output')
@@ -123,11 +145,14 @@ class AngelScraper:
         self.market_label_size_file_dir = os.path.join(self.output_dir, 'market_label_size')
         self.debug_dir = os.path.join(self.output_dir, 'debug')
 
+        # settings
         self.parser = 'lxml'
-        self.visit_inner = True
+        self.visit_inner = True  # inner pages are comapny detail pages
+        self.inner_page_redownload = False  # if inn
+
         self.mute_display = False
 
-        # markets
+        # markets filters
         if market_label_file is None:
             market_labels = []
         else:
@@ -135,19 +160,18 @@ class AngelScraper:
                 m = f.readlines()
             market_labels = [x.strip() for x in m]
 
-        if not market_labels or skip_market_filter:
-            self.market_filters = ['']
-        else:
+        if market_labels and not self.skip_market_filter:
             self.market_filters = ['&markets[]={}'.format(x.replace(' ', '+')).replace('+++', '+') for x in
                                    market_labels]
             # self.market_filters.append('')
             self.market_filters.insert(0, '')
 
         # locations
-        locations = ['United States', 'Europe', 'Silicon Valley', 'Asia', 'London', 'New York', 'California']
-        if not locations or skip_location_filter:
-            self.location_filters = ['']
-        else:
+        # locations = ['United States', 'Europe', 'Silicon Valley', 'Asia', 'London', 'New York', 'California']
+        # updated on 2017/07/04
+        locations = ['1688-United+States', '1624-California', '1664-New+York+City', '153509-Asia', '1642-Europe',
+                     '1695-London,+GB', '1681-Silicon+Valley']
+        if locations and not self.skip_location_filter:
             self.location_filters = ['&locations[]={}'.format(x.replace(' ', '+')) for x in locations]
             # self.location_filters.append('')
             self.location_filters.insert(0, '')
@@ -155,20 +179,17 @@ class AngelScraper:
         # signal levels
         signal_pair_list = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, 8), (8, 9), (9, 10)]
         signal_pair_list.reverse()
-        if skip_signal_filter or not signal_pair_list:
+        if self.skip_signal_filter or not signal_pair_list:
             # signal_pair_list = [(8, 9), (9, 10)]
             signal_pair_list = [(7, 8)]
         self.signal_filters = [
             '&signal[min]={signal_min}&signal[max]={signal_max}'.format(signal_min=x[0], signal_max=x[1]) for x in
             signal_pair_list]
-
         self.signal_filters = zip(self.signal_filters, signal_pair_list)
 
         # featured flag
-        if skip_featured_filter:
-            self.featured_filters = ['']
-        else:
-            self.featured_filters = ['', '&featured=Featured']
+        if not self.skip_featured_filter:
+            self.featured_filters = ['', '&featured=Featured']  # might want to add done deal
 
         # raised money
         raised_pair_list = [(0, 1),
@@ -215,10 +236,15 @@ class AngelScraper:
             self.stage_filters.insert(0, '')
 
         self.url_df = None
-        self.index_url_list_file = os.path.join(self.url_list_folder,
-                                                'url_list_{}.csv'.format(datetime.date.today()))
+        self.search_page_url_list_file = os.path.join(self.url_list_folder,
+                                                      'url_list_{}.csv'.format(datetime.date.today()))
 
-    def generate_url_list(self, use_existing_url_list=False):
+    def generate_url_list_of_search_pages(self, use_existing_url_list=False):
+        """
+        Use filters to generaty urls of searches, append them to self.url_list
+        :param use_existing_url_list: 
+        :return: 
+        """
 
         tmp_raised_filters = self.raised_filters
         tmp_stage_filters = self.stage_filters
@@ -231,7 +257,7 @@ class AngelScraper:
                     for lf in self.location_filters:
                         for sf in self.signal_filters:
                             target_url = self.root_url + mf + ff + lf + sf[0]
-                            company_count = self.get_company_count_on_index_page(url=target_url)
+                            company_count = self.get_company_count_on_search_page(url=target_url)
                             if company_count > 0:
                                 url_list.append(dict(url=target_url,
                                                      fname=self.url_to_base_fname(target_url),
@@ -248,12 +274,13 @@ class AngelScraper:
                                 set_pause(1)
 
                             if company_count > 400:
+                                # if number of companies too great, sub divide using stage and raised filter
                                 log_time()
                                 print 'index page too long (>400), further dividing...'
 
                                 for tsf in tmp_stage_filters:
                                     url_div1 = target_url + tsf
-                                    company_count_div1 = self.get_company_count_on_index_page(url=url_div1)
+                                    company_count_div1 = self.get_company_count_on_search_page(url=url_div1)
                                     if random.random() < .6:
                                         set_pause(2)
                                     elif random.random() < .95:
@@ -274,7 +301,7 @@ class AngelScraper:
 
                                         for trf in tmp_raised_filters:
                                             url_div1_div1 = url_div1 + trf
-                                            company_count_div1_div1 = self.get_company_count_on_index_page(
+                                            company_count_div1_div1 = self.get_company_count_on_search_page(
                                                 url=url_div1_div1)
                                             if random.random() < .6:
                                                 set_pause(2)
@@ -292,7 +319,7 @@ class AngelScraper:
 
                                 for trf in tmp_raised_filters:
                                     url_div2 = target_url + trf
-                                    company_count_div2 = self.get_company_count_on_index_page(url=url_div2)
+                                    company_count_div2 = self.get_company_count_on_search_page(url=url_div2)
                                     if random.random() < .6:
                                         set_pause(2)
                                     elif random.random() < .95:
@@ -310,21 +337,32 @@ class AngelScraper:
             self.url_df = pd.DataFrame(url_list).drop_duplicates()
 
             log_time()
-            print 'Writing url list file: {}'.format(self.index_url_list_file)
-            self.url_df.to_csv(self.index_url_list_file)
+            print 'Writing url list file: {}'.format(self.search_page_url_list_file)
+            self.url_df.to_csv(self.search_page_url_list_file)
         else:
             log_time()
-            print 'Reading url list file: {}'.format(self.index_url_list_file)
-            self.url_df = pd.read_csv(self.index_url_list_file)
+            print 'Reading url list file: {}'.format(self.search_page_url_list_file)
+            self.url_df = pd.read_csv(self.search_page_url_list_file)
 
         log_time()
         print 'Length of url_list: {}'.format(len(self.url_df))
 
     def url_to_base_fname(self, url):
+        """
+        translate search page url to filename in a consiste manner
+        :param url: 
+        :return: 
+        """
         fname = 'results_' + url.replace(self.root_url, '').replace('&', '_') + '.csv'
         return fname
 
-    def get_company_count_on_index_page(self, driver_in=None, url=None):
+    def get_company_count_on_search_page(self, driver_in=None, url=None):
+        """
+        for search pages, parse the heading and get the number of companies hit by the search
+        :param driver_in: 
+        :param url: 
+        :return: 
+        """
         log_time('highlight')
         print '*** New search, url: {}'.format(url)
 
@@ -350,6 +388,13 @@ class AngelScraper:
         return company_count
 
     def load_url(self, driver=None, url=None, n_attempts_limit=3):
+        """
+        page loader with n_attempts
+        :param driver: 
+        :param url: 
+        :param n_attempts_limit: 
+        :return: 
+        """
         n_attempts = 0
         page_loaded = False
         while n_attempts < n_attempts_limit and not page_loaded:
@@ -377,15 +422,16 @@ class AngelScraper:
 
         return True
 
-    def parse_all_index_pages(self, use_file=None):
-        self.url_df = self.url_df.iloc[np.random.permutation(len(self.url_df))]
+    def parse_all_search_pages(self, use_file=None):
         if use_file is None:  # then use self.url_df
+            self.url_df = self.url_df.iloc[np.random.permutation(len(self.url_df))]
+            # shuffle to help resuming at random entry point
             for idx, row in self.url_df.iterrows():
-                self.parse_one_index_page(url_dict=row)
+                self.parse_one_search_page(url_dict=row)
         else:
             assert 0
 
-    def parse_one_index_page(self, url_dict=None):
+    def parse_one_search_page(self, url_dict=None):
         assert url_dict is not None
 
         log_time('highlight')
@@ -400,7 +446,7 @@ class AngelScraper:
         featured = url_dict['featured']
 
         if company_count > 400:
-            click_sort_list = ['signal', 'joined', 'raised']
+            click_sort_list = ['signal', 'joined', 'raised']  # using several clicks to get more companies
         else:
             click_sort_list = ['signal']
 
@@ -522,7 +568,7 @@ class AngelScraper:
                         if self.visit_inner:
                             inner_page = None
 
-                            if os.path.exists(inner_page_filename):
+                            if (not self.inner_page_redownload) and os.path.exists(inner_page_filename):
                                 log_time('overwrite')
                                 print '{} exists, wont re-download'.format(inner_page_filename)
                                 with open(inner_page_filename, 'r') as fi:
