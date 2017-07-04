@@ -414,8 +414,18 @@ class AngelScraper:
             quit_driver(driver)
         soup = BeautifulSoup(page, self.parser)
         parser_count = re.compile(r'([\d,]+)')
-        company_count = soup.select('div.top div.count')[0].get_text().replace(',', '')
-        company_count = int(parser_count.search(company_count).group(1))
+        try:
+            company_count = soup.select('div.top div.count')[0].get_text().replace(',', '')
+            company_count = int(parser_count.search(company_count).group(1))
+        except:
+            failed_case_fname = os.path.join(self.debug_dir,
+                                             'failed_{}.html'.format(str(datetime.datetime.now())))
+            log_time('error')
+            print('failed to get company count page, saving page as {}'.format(failed_case_fname))
+            with open(failed_case_fname, 'w') as failed_f:
+                failed_f.write(page.encode('utf-8'))
+
+            company_count = 0
 
         log_time('highlight')
         print('*** found {} companies'.format(company_count))
@@ -493,7 +503,7 @@ class AngelScraper:
                                                      'failed_{}.html'.format(str(datetime.datetime.now())))
                     log_time('error')
                     print('failed to get results from page, saving page as {}'.format(failed_case_fname))
-                    with open(failed_case_fname, 'w') as failed_f:
+                    with open(failed_case_fname, 'w', encoding='utf-8') as failed_f:
                         failed_f.write(page.encode('utf-8'))
                     quit_driver(driver)
                     set_pause(1)
@@ -533,9 +543,9 @@ class AngelScraper:
 
                         date_obj = a.select('div.column.joined > div.value')
                         if date_obj:
-                            date_str = date_obj[0].get_text().encode('ascii', errors='replace').strip().replace(
-                                '?',
-                                '')
+                            date_str = date_obj[0].get_text().encode('ascii', errors='replace')
+                            # print(date_str)
+                            date_str = date_str.decode('utf-8').strip().replace('?', '')
                             entry['joined_date'] = datetime.datetime.strptime(date_str, '%b %y')
                         else:
                             entry['joined_date'] = None
@@ -576,11 +586,17 @@ class AngelScraper:
 
                                     inner_page = inner_driver.page_source
                                     inner_driver.quit()
-                                    with open(inner_page_filename, 'w') as p:
-                                        if type(inner_page) is unicode:
-                                            p.write(inner_page.encode('utf-8'))
+                                    with open(inner_page_filename, 'w', encoding='utf-8') as p:
+                                        if sys.version_info[0] == 3:
+                                            if isinstance(inner_page, bytes):
+                                                p.write(inner_page.decode('utf-8', 'replace'))
+                                            else:
+                                                p.write(inner_page)
                                         else:
-                                            p.write(inner_page)
+                                            if isinstance(inner_page, unicode):
+                                                p.write(inner_page.encode('utf-8'))
+                                            else:
+                                                p.write(inner_page)
 
                                     if random.random() < 0.1:
                                         set_pause(3)
@@ -649,11 +665,17 @@ class AngelScraper:
                     page_filename = os.path.join(self.index_page_folder,
                                                  url.replace('/', ']]]') + '_click_{}.html'.format(
                                                      N_click))
-                    with open(page_filename, 'w') as p:
-                        if type(page) is unicode:
-                            p.write(page.encode('ascii', errors='ignore'))
+                    with open(page_filename, 'w', encoding='utf-8') as p:
+                        if sys.version_info[0] == 3:
+                            if isinstance(page, bytes):
+                                p.write(page.decode('utf-8', 'replace'))
+                            else:
+                                p.write(page)
                         else:
-                            p.write(page)
+                            if type(page) is unicode:
+                                p.write(page.encode('ascii', errors='ignore'))
+                            else:
+                                p.write(page)
                     soup = BeautifulSoup(page, self.parser)
                     results = soup(class_='results')[0]('div', attrs={'data-_tn': 'companies/row'})
                     N_rows_new = len(results)
