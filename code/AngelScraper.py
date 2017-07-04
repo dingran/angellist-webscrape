@@ -20,6 +20,7 @@ pd.set_option('display.max_colwidth', -1)
 pd.set_option('display.colheader_justify', 'left')
 colorama.init()
 
+
 def log_time(kind='general', color_str=None):
     if color_str is None:
         if kind == 'error' or kind.startswith('e'):
@@ -129,11 +130,11 @@ def load_url(driver=None, url=None, n_attempts_limit=3):
 
 class AngelScraper:
     def __init__(self,
-                 skip_market_filter=True,
+                 skip_market_filter=True,  # todo add support for keywords list
                  skip_location_filter=False,
                  skip_raised_filter=False,
                  skip_stage_filter=False,
-                 skip_signal_filter=True,
+                 skip_signal_filter=False,
                  skip_featured_filter=False,
                  market_label_file='market_labels.txt'
                  ):
@@ -163,6 +164,7 @@ class AngelScraper:
         # specifying a set of folders
         self.working_dir = '/Users/dingran/github/angellist-webscrape'
         self.code_dir = os.path.join(self.working_dir, 'code')
+
         self.output_dir = os.path.join(self.working_dir, 'output')
         self.url_list_folder = os.path.join(self.output_dir, 'url_lists')
         self.results_folder = os.path.join(self.output_dir, 'results')
@@ -170,6 +172,11 @@ class AngelScraper:
         self.index_page_folder = os.path.join(self.output_dir, 'index_pages')
         self.market_label_size_file_dir = os.path.join(self.output_dir, 'market_label_size')
         self.debug_dir = os.path.join(self.output_dir, 'debug')
+
+        for d in [self.output_dir, self.url_list_folder, self.results_folder, self.company_page_folder,
+                  self.index_page_folder, self.market_label_size_file_dir, self.debug_dir]:
+            if not os.path.exists(d):
+                os.makedirs(d)
 
         # settings
         self.parser = 'lxml'
