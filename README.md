@@ -20,12 +20,12 @@ The following packages are required
 
 ### Approach:
 
-In order to get a list of companies we can putgether a url with the base url https://angel.co/companies? 
+In order to get a list of companies we can putgether a url with the base url ```https://angel.co/companies?``` 
 plus a number of filters a a string.
 
 An example with stage, signal, markets and location filter looks like the following:
 
-https://angel.co/companies?stage=Seed&signal\[min]=2.1&signal\[max]=5.7&markets[]=Consumer+Internet&locations[]=2071-New+York
+```https://angel.co/companies?stage=Seed&signal[min]=2.1&signal[max]=5.7&markets[]=Consumer+Internet&locations[]=2071-New+York```
 
 At the time of writing, Angle.co limits number companies per query to be 400, 
 therefor we can use many filters with specific conditions to create unique searches and 
