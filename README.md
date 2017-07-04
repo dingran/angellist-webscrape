@@ -43,3 +43,5 @@ in class AngelScraper
 ```python code/main.py``` to execute the scraper, a number of folders will be created
 
 ```python code/get_results.py``` to collect the results into one csv file at output/results_so_far_$datatime$.csv
+
+**Please use responsibly.**
