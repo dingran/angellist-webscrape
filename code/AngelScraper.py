@@ -1,30 +1,20 @@
-# from __future__ import print_function
+from __future__ import print_function
 import numpy as np
 import os
 import re
 import sys
-import glob
 import time
-import shutil
 import random
-import urllib2
-import logging
-import urlparse
-import platform
+import colorama
 import datetime
 import pandas as pd
-from random import shuffle
 from bs4 import BeautifulSoup
-from contextlib import closing
-from pyvirtualdisplay import Display
-from progressbar import Bar, ETA, Percentage, ProgressBar, RotatingMarker, Timer
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support import expected_conditions as ec
 from selenium.common.exceptions import TimeoutException
-import termcolor
 
 pd.set_option('display.max_colwidth', -1)
 pd.set_option('display.colheader_justify', 'left')
@@ -33,19 +23,19 @@ pd.set_option('display.colheader_justify', 'left')
 def log_time(kind='general', color_str=None):
     if color_str is None:
         if kind == 'error' or kind.startswith('e'):
-            color_str = 'red'
+            color_str = colorama.Fore.RED
         elif kind == 'info' or kind.startswith('i'):
-            color_str = 'yellow'
+            color_str = colorama.Fore.YELLOW
         elif kind == 'overwrite' or kind.startswith('o'):
-            color_str = 'magenta'
+            color_str = colorama.Fore.MAGENTA
         elif kind == 'write' or kind.startswith('w'):
-            color_str = 'cyan'
+            color_str = colorama.Fore.CYAN
         elif kind == 'highlight' or kind.startswith('h'):
-            color_str = 'green'
+            color_str = colorama.Fore.GREEN
         else:
-            color_str = 'white'
+            color_str = colorama.Fore.WHITE
 
-    print termcolor.colored(datetime.datetime.now(), color_str),
+    print(color_str + str(datetime.datetime.now()) + colorama.Fore.RESET, end=' ')
 
 
 def calc_pause(base_seconds=3., variable_seconds=5.):
@@ -73,14 +63,14 @@ def set_pause(kind=1, t=None):
             kind_str = 'very short'
             t = calc_pause(base_seconds=0.5, variable_seconds=0.5)
 
-    print '{} pause: {}s...'.format(kind_str, t)
+    print('{} pause: {}s...'.format(kind_str, t))
 
     time.sleep(t)
 
 
 def init_driver(driver_type='Chrome'):
     log_time('info')
-    print 'initiating driver: {}'.format(driver_type)
+    print('initiating driver: {}'.format(driver_type))
     if driver_type == 'Chrome':
         dr = webdriver.Chrome()
     elif driver_type.startswith('Pha'):
@@ -97,8 +87,44 @@ def init_driver(driver_type='Chrome'):
 
 def quit_driver(dr):
     log_time('info')
-    print 'closing driver...'
+    print('closing driver...')
     dr.quit()
+
+
+def load_url(driver=None, url=None, n_attempts_limit=3):
+    """
+    page loader with n_attempts
+    :param driver: 
+    :param url: 
+    :param n_attempts_limit: 
+    :return: 
+    """
+    n_attempts = 0
+    page_loaded = False
+    while n_attempts < n_attempts_limit and not page_loaded:
+        try:
+            driver.get(url)
+            page_loaded = True
+            log_time()
+            print('page loaded successfully: {}'.format(url))
+        except TimeoutException:
+            n_attempts += 1
+            log_time('error')
+            print('loading page timeout', url, 'attempt {}'.format(n_attempts))
+            set_pause(1)
+        except:
+            n_attempts += 1
+            log_time('error')
+            print('loading page unknown error', url, 'attempt {}'.format(n_attempts))
+            set_pause(1)
+
+    if n_attempts == n_attempts_limit:
+        driver.quit()
+        log_time('error')
+        print('loading page failed after {} attempts, now give up:'.format(n_attempts_limit), url)
+        return False
+
+    return True
 
 
 class AngelScraper:
@@ -257,7 +283,7 @@ class AngelScraper:
                     for lf in self.location_filters:
                         for sf in self.signal_filters:
                             target_url = self.root_url + mf + ff + lf + sf[0]
-                            company_count = self.get_company_count_on_search_page(url=target_url)
+                            company_count = self.get_company_count_on_search_page(target_url=target_url)
                             if company_count > 0:
                                 url_list.append(dict(url=target_url,
                                                      fname=self.url_to_base_fname(target_url),
@@ -266,7 +292,7 @@ class AngelScraper:
                                                      signal=sf[1][1]))
                             else:
                                 log_time()
-                                print 'empty list, not adding to the url_list: {}'.format(target_url)
+                                print('empty list, not adding to the url_list: {}'.format(target_url))
 
                             if random.random() < .6:
                                 set_pause(2)
@@ -276,11 +302,11 @@ class AngelScraper:
                             if company_count > 400:
                                 # if number of companies too great, sub divide using stage and raised filter
                                 log_time()
-                                print 'index page too long (>400), further dividing...'
+                                print('index page too long (>400), further dividing...')
 
                                 for tsf in tmp_stage_filters:
                                     url_div1 = target_url + tsf
-                                    company_count_div1 = self.get_company_count_on_search_page(url=url_div1)
+                                    company_count_div1 = self.get_company_count_on_search_page(target_url=url_div1)
                                     if random.random() < .6:
                                         set_pause(2)
                                     elif random.random() < .95:
@@ -293,16 +319,16 @@ class AngelScraper:
                                                              signal=sf[1][1]))
                                     else:
                                         log_time()
-                                        print 'empty list, not adding to the url_list: {}'.format(url_div1)
+                                        print('empty list, not adding to the url_list: {}'.format(url_div1))
 
                                     if company_count_div1 > 400:
                                         log_time()
-                                        print 'index page still too long (>400), further further dividing...'
+                                        print('index page still too long (>400), further further dividing...')
 
                                         for trf in tmp_raised_filters:
                                             url_div1_div1 = url_div1 + trf
                                             company_count_div1_div1 = self.get_company_count_on_search_page(
-                                                url=url_div1_div1)
+                                                target_url=url_div1_div1)
                                             if random.random() < .6:
                                                 set_pause(2)
                                             elif random.random() < .95:
@@ -315,11 +341,12 @@ class AngelScraper:
                                                                      signal=sf[1][1]))
                                             else:
                                                 log_time()
-                                                print 'empty list, not adding to the url_list: {}'.format(url_div1_div1)
+                                                print(
+                                                    'empty list, not adding to the url_list: {}'.format(url_div1_div1))
 
                                 for trf in tmp_raised_filters:
                                     url_div2 = target_url + trf
-                                    company_count_div2 = self.get_company_count_on_search_page(url=url_div2)
+                                    company_count_div2 = self.get_company_count_on_search_page(target_url=url_div2)
                                     if random.random() < .6:
                                         set_pause(2)
                                     elif random.random() < .95:
@@ -332,20 +359,20 @@ class AngelScraper:
                                                              signal=sf[1][1]))
                                     else:
                                         log_time()
-                                        print 'empty list, not adding to the url_list: {}'.format(url_div2)
+                                        print('empty list, not adding to the url_list: {}'.format(url_div2))
 
             self.url_df = pd.DataFrame(url_list).drop_duplicates()
 
             log_time()
-            print 'Writing url list file: {}'.format(self.search_page_url_list_file)
+            print('Writing url list file: {}'.format(self.search_page_url_list_file))
             self.url_df.to_csv(self.search_page_url_list_file)
         else:
             log_time()
-            print 'Reading url list file: {}'.format(self.search_page_url_list_file)
+            print('Reading url list file: {}'.format(self.search_page_url_list_file))
             self.url_df = pd.read_csv(self.search_page_url_list_file)
 
         log_time()
-        print 'Length of url_list: {}'.format(len(self.url_df))
+        print('Length of url_list: {}'.format(len(self.url_df)))
 
     def url_to_base_fname(self, url):
         """
@@ -356,22 +383,23 @@ class AngelScraper:
         fname = 'results_' + url.replace(self.root_url, '').replace('&', '_') + '.csv'
         return fname
 
-    def get_company_count_on_search_page(self, driver_in=None, url=None):
+    def get_company_count_on_search_page(self, driver_in=None, target_url=None):
         """
         for search pages, parse the heading and get the number of companies hit by the search
         :param driver_in: 
-        :param url: 
+        :param target_url: 
         :return: 
         """
         log_time('highlight')
-        print '*** New search, url: {}'.format(url)
+        print('*** New search, target_url: {}'.format(target_url))
+        sys.stdout.flush()
 
         if driver_in is None:
             driver = init_driver()
         else:
             driver = driver_in
 
-        if not self.load_url(driver, url):
+        if not load_url(driver, target_url):
             return None
 
         page = driver.page_source
@@ -383,44 +411,9 @@ class AngelScraper:
         company_count = int(parser_count.search(company_count).group(1))
 
         log_time('highlight')
-        print '*** found {} companies'.format(company_count)
+        print('*** found {} companies'.format(company_count))
 
         return company_count
-
-    def load_url(self, driver=None, url=None, n_attempts_limit=3):
-        """
-        page loader with n_attempts
-        :param driver: 
-        :param url: 
-        :param n_attempts_limit: 
-        :return: 
-        """
-        n_attempts = 0
-        page_loaded = False
-        while n_attempts < n_attempts_limit and not page_loaded:
-            try:
-                driver.get(url)
-                page_loaded = True
-                log_time()
-                print 'page loaded successfully: {}'.format(url)
-            except TimeoutException:
-                n_attempts += 1
-                log_time('error')
-                print 'loading page timeout', url, 'attempt {}'.format(n_attempts)
-                set_pause(1)
-            except:
-                n_attempts += 1
-                log_time('error')
-                print 'loading page unknown error', url, 'attempt {}'.format(n_attempts)
-                set_pause(1)
-
-        if n_attempts == n_attempts_limit:
-            driver.quit()
-            log_time('error')
-            print 'loading page failed after {} attempts, now give up:'.format(n_attempts_limit), url
-            return False
-
-        return True
 
     def parse_all_search_pages(self, use_file=None):
         if use_file is None:  # then use self.url_df
@@ -435,8 +428,8 @@ class AngelScraper:
         assert url_dict is not None
 
         log_time('highlight')
-        print 'parsing single page'
-        print url_dict
+        print('parsing single page')
+        print(url_dict)
         url = url_dict['url']
         result_fname_tempalte = os.path.join(self.results_folder, url_dict['fname']).replace('.csv',
                                                                                              '_sort=<sort_key>_click={'
@@ -453,37 +446,34 @@ class AngelScraper:
         for click_sort in click_sort_list:
             result_fname = result_fname_tempalte.replace('<sort_key>', click_sort)
             driver = init_driver()
-            self.load_url(driver=driver, url=url)
+            load_url(driver=driver, url=url)
 
             N_click_max = company_count / 20 + 2
             N_click = 1
             N_rows = 1
-            N_rows_new = -1
-            start_row = 1
-            results = None
             last_page_flag = False
 
             more_button = None
             if company_count > 0:
                 try:
-                    more_button = driver.wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'more')))
+                    more_button = driver.wait.until(ec.element_to_be_clickable((By.CLASS_NAME, 'more')))
                 except TimeoutException:
                     last_page_flag = True
                     log_time('error')
-                    print 'exhausted page length, with N_click == {}'.format(N_click)
+                    print('exhausted page length, with N_click == {}'.format(N_click))
 
                 if click_sort != 'signal':
                     css_selector_str = 'div.column.{}.sortable'.format(click_sort)
                     log_time('info')
-                    print 'clicking sort button: {}'.format(css_selector_str)
+                    print('clicking sort button: {}'.format(css_selector_str))
                     try:
                         sort_button = driver.wait.until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector_str)))
+                            ec.element_to_be_clickable((By.CSS_SELECTOR, css_selector_str)))
                         sort_button.click()
-                        driver.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector_str)))
+                        driver.wait.until(ec.element_to_be_clickable((By.CSS_SELECTOR, css_selector_str)))
                     except:
                         log_time('error')
-                        print 'failed to click click_sort={} at {}'.format(click_sort, url)
+                        print('failed to click click_sort={} at {}'.format(click_sort, url))
 
                 page = driver.page_source
                 soup = BeautifulSoup(page, self.parser)
@@ -495,7 +485,7 @@ class AngelScraper:
                     failed_case_fname = os.path.join(self.debug_dir,
                                                      'failed_{}.html'.format(str(datetime.datetime.now())))
                     log_time('error')
-                    print 'failed to get results from page, saving page as {}'.format(failed_case_fname)
+                    print('failed to get results from page, saving page as {}'.format(failed_case_fname))
                     with open(failed_case_fname, 'w') as failed_f:
                         failed_f.write(page.encode('utf-8'))
                     quit_driver(driver)
@@ -503,7 +493,7 @@ class AngelScraper:
                     continue
             else:
                 log_time('error')
-                print 'empty search result with target_url=={}'.format(url)
+                print('empty search result with target_url=={}'.format(url))
                 quit_driver(driver)
                 set_pause(1)
                 continue
@@ -517,7 +507,7 @@ class AngelScraper:
 
                 if os.path.exists(output_fname):
                     log_time('overwrite')
-                    print output_fname, 'exsits, skipping'
+                    print(output_fname, 'exsits, skipping')
                 else:
                     for i in range(start_row, N_rows):
                         entry = dict()
@@ -527,8 +517,8 @@ class AngelScraper:
                         entry['featured'] = featured
                         entry['score'] = signal_score
                         entry['title'] = title
-                        print datetime.datetime.now(),
-                        print 'N_click = {}, row = {}/{}, {}'.format(N_click, i, N_rows - 1, title)
+                        print(datetime.datetime.now(),
+                              'N_click = {}, row = {}/{}, {}'.format(N_click, i, N_rows - 1, title))
 
                         inner_url = a.select('a.startup-link')[0]['href']
                         entry['al_link'] = inner_url
@@ -570,12 +560,12 @@ class AngelScraper:
 
                             if (not self.inner_page_redownload) and os.path.exists(inner_page_filename):
                                 log_time('overwrite')
-                                print '{} exists, wont re-download'.format(inner_page_filename)
+                                print('{} exists, wont re-download'.format(inner_page_filename))
                                 with open(inner_page_filename, 'r') as fi:
                                     inner_page = fi.read()
                             else:
                                 inner_driver = init_driver()
-                                if self.load_url(driver=inner_driver, url=inner_url):
+                                if load_url(driver=inner_driver, url=inner_url):
 
                                     inner_page = inner_driver.page_source
                                     inner_driver.quit()
@@ -605,7 +595,7 @@ class AngelScraper:
                                     entry['product_desc'] = product_desc
                                 except:
                                     log_time('error')
-                                    print 'cannnot get product_desc'
+                                    print('cannnot get product_desc')
 
                         with open(inner_page_filename.replace('.html', '.txt'), 'w') as f_record:
                             # print entry
@@ -615,12 +605,12 @@ class AngelScraper:
 
                     df_entries = pd.DataFrame(entries)
                     log_time('write')
-                    print 'Writing {}'.format(output_fname)
+                    print('Writing {}'.format(output_fname))
                     df_entries.to_csv(output_fname, index=False, encoding='utf-8')
 
                     if last_page_flag:
                         log_time('error')
-                        print 'stopping'
+                        print('stopping')
                         set_pause(1)
                         break
 
@@ -640,7 +630,7 @@ class AngelScraper:
                     more_button.click()
                 except:
                     log_time('error')
-                    print 'more button not clickable, N_click = {}'.format(N_click)
+                    print('more button not clickable, N_click = {}'.format(N_click))
                     set_pause(1)
                     break
 
@@ -665,10 +655,10 @@ class AngelScraper:
 
                     time.sleep(0.5)
                 try:
-                    more_button = driver.wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'more')))
+                    more_button = driver.wait.until(ec.element_to_be_clickable((By.CLASS_NAME, 'more')))
                 except TimeoutException:
                     last_page_flag = True
                     log_time('error')
-                    print 'exhausted page length, with N_click == {}'.format(N_click)
+                    print('exhausted page length, with N_click == {}'.format(N_click))
 
             quit_driver(driver)
