@@ -18,7 +18,7 @@ from selenium.common.exceptions import TimeoutException
 
 pd.set_option('display.max_colwidth', -1)
 pd.set_option('display.colheader_justify', 'left')
-
+colorama.init()
 
 def log_time(kind='general', color_str=None):
     if color_str is None:
