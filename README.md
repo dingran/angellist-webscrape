@@ -20,8 +20,8 @@ The following packages are required
 
 ### Approach:
 
-In order to get a list of companies we can putgether a url with the base url ```https://angel.co/companies?``` 
-plus a number of filters a a string.
+In order to get a list of companies we can put gether a url with the base url ```https://angel.co/companies?``` 
+plus a number of filter strings.
 
 An example with stage, signal, markets and location filter looks like the following:
 
